@@ -5,7 +5,7 @@
 #include <fcntl.h>
 #include "game.h"
 
-int ship_board[HEIGHT][WIDTH], shots_board[11][11];
+int ship_board[HEIGHT][WIDTH], shots_board[HEIGHT][WIDTH];
 
 using namespace std;
 
