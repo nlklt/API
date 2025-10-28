@@ -16,20 +16,26 @@ int main()
 
     setlocale(LC_CTYPE, "Russian");
 
-    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
-    if (hOut != INVALID_HANDLE_VALUE) {
-        DWORD dwMode = 0;
-        if (GetConsoleMode(hOut, &dwMode)) {
-            dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
-            SetConsoleMode(hOut, dwMode);
+    wcout << L"\nПоле кораблей:\n";
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 10; j++) {
+            wcout << ship_board[i][j] << " ";
+            HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+            if (hOut != INVALID_HANDLE_VALUE) {
+                DWORD dwMode = 0;
+                if (GetConsoleMode(hOut, &dwMode)) {
+                    dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+                    SetConsoleMode(hOut, dwMode);
+                }
+            }
+
+            drawBoards(ship_board, shots_board);
+
+            placeShip(ship_board);
+
+            drawBoards(ship_board, shots_board);
+
+            return 0;
         }
     }
-
-    drawBoards(ship_board, shots_board);
-
-    placeShip(ship_board);
-
-    drawBoards(ship_board, shots_board);
-    
-    return 0;
 }
