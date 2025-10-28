@@ -1,4 +1,45 @@
+# Build results
+[Bb]in/
+[Oo]bj/
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.so
+*.pdb
+*.idb
+*.ipdb
+
+# Visual Studio
 .vs/
-ipch/
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
 *.VC.db*
+*.VC.opendb
+*.ncb
 *.opendb
+*.ipch
+*.iobj
+*.iuser
+*.lastbuildstate
+
+# Visual Studio Code
+.vscode/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Others
+*.log
+*.tmp
+*.temp
+*.cache
+*.DS_Store
