@@ -11,7 +11,7 @@ wstring horizonSeparator()
     wstring separator = L"";
     for (int j = 0; j < WIDTH + 1; j++)
     {
-        separator += L"——┼";
+        separator += L"⎯⎯┼";
     }
     return separator;
 }
