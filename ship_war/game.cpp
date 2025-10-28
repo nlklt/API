@@ -19,7 +19,8 @@ void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int (&shots_board)
 	display += L"  ";
 	for (int j = 0; j < WIDTH; j++)
 	{
-		display += (wchar_t)(L'A' + j + 0xFEE0);
+        display += (wchar_t)(L'A' + j + 0xFEE0);
+        display += L'┃';
 	}
 
     //Разрыв между полями
@@ -44,7 +45,7 @@ void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int (&shots_board)
 
 		for (int j = 0; j < WIDTH; j++)
 		{
-			display += (ship_board[i][j]) ? L"██" : L"  ";
+			display += (ship_board[i][j]) ? L"╳╳" : L"  ";
 		}
 
         //Разрыв между полями
@@ -57,7 +58,7 @@ void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int (&shots_board)
 
 		for (int j = 0; j < WIDTH; j++)
 		{
-			display += (ship_board[i][j]) ? L".." : L"  ";
+			display += (shots_board[i][j]) ? L".." : L"  ";
 		}
         display += L'\n';
 	}
