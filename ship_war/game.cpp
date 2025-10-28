@@ -13,7 +13,7 @@ void drawBoards(const int (&ship_boards)[HEIGHT][WIDTH], const int (&shots_board
 
 
 	std::
-		wcout << L"\x1b[?25l";	//исправить на очистку экрана
+		wcout << L"\x1b[?25l";	
 
 	display += L"  ";
 	for (int j = 0; j < WIDTH; j++)
@@ -38,8 +38,8 @@ void drawBoards(const int (&ship_boards)[HEIGHT][WIDTH], const int (&shots_board
 	}
 }
 
-bool isPlace(int ship_board[11][11], int x, int y) {
-    if (x < 0 || x >= 11 || y < 0 || y >= 11) {
+bool isPlace(int ship_board[HEIGHT][WIDTH], int x, int y) {
+    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
         wcout << L"Координаты вне поля!" << endl;
         return false;
     }
@@ -50,6 +50,7 @@ bool isPlace(int ship_board[11][11], int x, int y) {
     return true;
 }
 
+
 void placeShip(int ship_board[HEIGHT][WIDTH]) {
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
@@ -57,23 +58,71 @@ void placeShip(int ship_board[HEIGHT][WIDTH]) {
         }
     }
 
+    int ships_to_place[4] = { 1, 2, 3, 4 }; 
+
     while (true) {
-        wcout << L"Введите координаты корабля (x y), например: 4 3: ";
+        wcout << L"\nВведите координаты X Y, ширину и высоту корабля (например: 2 3 1 4): ";
         string user_input;
         getline(cin, user_input);
 
         stringstream ss(user_input);
-        int x, y;
-        if (!(ss >> x >> y)) {
+        int x, y, w, h;
+        if (!(ss >> x >> y >> w >> h)) {
             wcout << L"Неверный формат ввода!" << endl;
             continue;
         }
 
-        if (isPlace(ship_board, x, y)) {
-            ship_board[x][y] = 1;
-            wcout << L"Корабль размещён в точке (" << x << ", " << y << ")" << endl;
+        int size = max(w, h);
+        if (size < 1 || size > 4) {
+            wcout << L"Недопустимый размер корабля!" << endl;
+            continue;
+        }
+
+        int index = 4 - size;
+        if (ships_to_place[index] <= 0) {
+            wcout << L"Все корабли размера " << size << L" уже размещены!" << endl;
+            continue;
+        }
+
+        if (x < 0 || y < 0 || x + w > WIDTH || y + h > HEIGHT) {
+            wcout << L"Корабль выходит за границы поля!" << endl;
+            continue;
+        }
+
+        bool can_place = true;
+        for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+                if (ship_board[y + i][x + j] == 1) {
+                    can_place = false;
+                    break;
+                }
+            }
+        }
+
+        if (!can_place) {
+            wcout << L"Корабль пересекается с другим!" << endl;
+            continue;
+        }
+
+        for (int i = 0; i < h; i++) {
+            for (int j = 0; j < w; j++) {
+                ship_board[y + i][x + j] = 1;
+            }
+        }
+
+        ships_to_place[index]--;
+        wcout << L"Корабль " << w << L"x" << h << L" размещён в (" << x << L", " << y << L")" << endl;
+
+        bool done = true;
+        for (int i = 0; i < 4; i++) {
+            if (ships_to_place[i] > 0) {
+                done = false;
+                break;
+            }
+        }
+        if (done) {
+            wcout << L"\nВсе корабли размещены!" << endl;
             break;
         }
     }
 }
-
