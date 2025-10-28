@@ -23,7 +23,6 @@ void placeShip(int ship_board[11][11]) {
             ship_board[i][j] = 0;
         }
     }
-    ship_board[2][3] = 1;
 
     while (true) {
         wcout << L"¬ведите координаты корабл€ (x y), например: 4 3: ";
