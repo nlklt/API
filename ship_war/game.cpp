@@ -1,4 +1,4 @@
-#include "game.h"
+ï»¿#include "game.h"
 
 #include <iostream>
 #include <sstream>
@@ -7,85 +7,112 @@
 using namespace std;
 
 
-void drawBoards(const int (&ship_boards)[HEIGHT][WIDTH], const int (&shots_board)[HEIGHT][WIDTH])
+void drawBoards(const int(&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH])
 {
 	std::wstring display;
 
+	std::wcout << L"\x1b[?25l";	//Ð¸ÑÐ¿Ñ€Ð°Ð²Ð¸Ñ‚ÑŒ Ð½Ð° Ð¾Ñ‡Ð¸ÑÑ‚ÐºÑƒ ÑÐºÑ€Ð°Ð½Ð°
+    display += L"\x1b[H";
 
-	std::
-		wcout << L"\x1b[?25l";	
-
+    //ÐŸÐ¾Ð»Ðµ Ñ ÐºÐ¾Ñ€Ð°Ð±Ð»Ð¸ÐºÐ°Ð¼Ð¸
 	display += L"  ";
 	for (int j = 0; j < WIDTH; j++)
 	{
 		display += (wchar_t)(L'A' + j + 0xFEE0);
 	}
 
-	display += L'\t';
+    //Ð Ð°Ð·Ñ€Ñ‹Ð² Ð¼ÐµÐ¶Ð´Ñƒ Ð¿Ð¾Ð»ÑÐ¼Ð¸
+	display += L"\tâ”ƒ\t";
 
+    //ÐŸÐ¾Ð»Ðµ Ñ Ð²Ñ‹ÑÑ‚Ñ€ÐµÐ»Ð°Ð¼Ð¸
+    display += L"  ";
+    for (int j = 0; j < WIDTH; j++)
+    {
+        display += (wchar_t)(L'A' + j + 0xFEE0);
+    }
+
+	display += L'\n';
+
+    wstring number;
 	for (int i = 0; i < HEIGHT; i++)
 	{
-		display += L"  ";
+        //Ð¡Ñ‚Ñ€Ð¾ÐºÐ° Ñ ÐºÐ¾Ñ€Ð°Ð±Ð»Ð¸ÐºÐ°Ð¼Ð¸
+        number = to_wstring(i + 1);
+        display += number;
+        if (i + 1 < 10) { display += L' '; }
+
 		for (int j = 0; j < WIDTH; j++)
 		{
-			display += ship_boards[i][j];
+			display += (ship_board[i][j]) ? L"â–ˆâ–ˆ" : L"  ";
 		}
+
+        //Ð Ð°Ð·Ñ€Ñ‹Ð² Ð¼ÐµÐ¶Ð´Ñƒ Ð¿Ð¾Ð»ÑÐ¼Ð¸
+        display += L" \tâ”ƒ\t";
+
+        //Ð¡Ñ‚Ñ€Ð¾ÐºÐ° Ñ ÐºÐ¾Ñ€Ð°Ð±Ð»Ð¸ÐºÐ°Ð¼Ð¸
+        number = to_wstring(i + 1);
+        display += number;
+        if (i + 1 < 10) { display += L' '; }
+
+		for (int j = 0; j < WIDTH; j++)
+		{
+			display += (ship_board[i][j]) ? L".." : L"  ";
+		}
+        display += L'\n';
 	}
 
-	for (int num = 1; num < HEIGHT; num++)
-	{
-
-	}
+    wcout << display;
 }
 
-bool isPlace(int ship_board[HEIGHT][WIDTH], int x, int y) {
+
+bool isPlace(int(&ship_board)[HEIGHT][WIDTH], int x, int y){
     if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
-        wcout << L"Êîîðäèíàòû âíå ïîëÿ!" << endl;
+        wcout << L"ÐšÐ¾Ð¾Ñ€Ð´Ð¸Ð½Ð°Ñ‚Ñ‹ Ð²Ð½Ðµ Ð¿Ð¾Ð»Ñ!" << endl;
         return false;
     }
     if (ship_board[x][y] == 1) {
-        wcout << L"Çäåñü óæå åñòü êîðàáëü!" << endl;
+        wcout << L"Ð—Ð´ÐµÑÑŒ ÑƒÐ¶Ðµ ÐµÑÑ‚ÑŒ ÐºÐ¾Ñ€Ð°Ð±Ð»ÑŒ!" << endl;
         return false;
     }
     return true;
 }
 
 
-void placeShip(int ship_board[HEIGHT][WIDTH]) {
+void placeShip(int(&ship_board)[HEIGHT][WIDTH]){
     for (int i = 0; i < HEIGHT; i++) {
         for (int j = 0; j < WIDTH; j++) {
             ship_board[i][j] = 0;
         }
     }
 
-    int ships_to_place[4] = { 1, 2, 3, 4 }; 
+    int ships_to_place[4] = { 1, 2, 3, 4 };
 
     while (true) {
-        wcout << L"\nÂâåäèòå êîîðäèíàòû X Y, øèðèíó è âûñîòó êîðàáëÿ (íàïðèìåð: 2 3 1 4): ";
+        wcout << L"\nÐ’Ð²ÐµÐ´Ð¸Ñ‚Ðµ ÐºÐ¾Ð¾Ñ€Ð´Ð¸Ð½Ð°Ñ‚Ñ‹ X Y, ÑˆÐ¸Ñ€Ð¸Ð½Ñƒ Ð¸ Ð²Ñ‹ÑÐ¾Ñ‚Ñƒ ÐºÐ¾Ñ€Ð°Ð±Ð»Ñ (Ð½Ð°Ð¿Ñ€Ð¸Ð¼ÐµÑ€: 2 3 1 4): ";
         string user_input;
         getline(cin, user_input);
 
         stringstream ss(user_input);
         int x, y, w, h;
         if (!(ss >> x >> y >> w >> h)) {
-            wcout << L"Íåâåðíûé ôîðìàò ââîäà!" << endl;
+            wcout << L"ÐÐµÐ²ÐµÑ€Ð½Ñ‹Ð¹ Ñ„Ð¾Ñ€Ð¼Ð°Ñ‚ Ð²Ð²Ð¾Ð´Ð°!" << endl;
             continue;
         }
 
         int size = max(w, h);
         if (size < 1 || size > 4) {
-            wcout << L"Íåäîïóñòèìûé ðàçìåð êîðàáëÿ!" << endl;
+            wcout << L"ÐÐµÐ´Ð¾Ð¿ÑƒÑÑ‚Ð¸Ð¼Ñ‹Ð¹ Ñ€Ð°Ð·Ð¼ÐµÑ€ ÐºÐ¾Ñ€Ð°Ð±Ð»Ñ!" << endl;
             continue;
         }
 
         int index = 4 - size;
         if (ships_to_place[index] <= 0) {
-            wcout << L"Âñå êîðàáëè ðàçìåðà " << size << L" óæå ðàçìåùåíû!" << endl;
+            wcout << L"Ð’ÑÐµ ÐºÐ¾Ñ€Ð°Ð±Ð»Ð¸ Ñ€Ð°Ð·Ð¼ÐµÑ€Ð° " << size << L" ÑƒÐ¶Ðµ Ñ€Ð°Ð·Ð¼ÐµÑ‰ÐµÐ½Ñ‹!" << endl;
             continue;
         }
 
         if (x < 0 || y < 0 || x + w > WIDTH || y + h > HEIGHT) {
-            wcout << L"Êîðàáëü âûõîäèò çà ãðàíèöû ïîëÿ!" << endl;
+            wcout << L"ÐšÐ¾Ñ€Ð°Ð±Ð»ÑŒ Ð²Ñ‹Ñ…Ð¾Ð´Ð¸Ñ‚ Ð·Ð° Ð³Ñ€Ð°Ð½Ð¸Ñ†Ñ‹ Ð¿Ð¾Ð»Ñ!" << endl;
             continue;
         }
 
@@ -100,7 +127,7 @@ void placeShip(int ship_board[HEIGHT][WIDTH]) {
         }
 
         if (!can_place) {
-            wcout << L"Êîðàáëü ïåðåñåêàåòñÿ ñ äðóãèì!" << endl;
+            wcout << L"ÐšÐ¾Ñ€Ð°Ð±Ð»ÑŒ Ð¿ÐµÑ€ÐµÑÐµÐºÐ°ÐµÑ‚ÑÑ Ñ Ð´Ñ€ÑƒÐ³Ð¸Ð¼!" << endl;
             continue;
         }
 
@@ -111,7 +138,7 @@ void placeShip(int ship_board[HEIGHT][WIDTH]) {
         }
 
         ships_to_place[index]--;
-        wcout << L"Êîðàáëü " << w << L"x" << h << L" ðàçìåù¸í â (" << x << L", " << y << L")" << endl;
+        wcout << L"ÐšÐ¾Ñ€Ð°Ð±Ð»ÑŒ " << w << L"x" << h << L" Ñ€Ð°Ð·Ð¼ÐµÑ‰Ñ‘Ð½ Ð² (" << x << L", " << y << L")" << endl;
 
         bool done = true;
         for (int i = 0; i < 4; i++) {
@@ -121,8 +148,9 @@ void placeShip(int ship_board[HEIGHT][WIDTH]) {
             }
         }
         if (done) {
-            wcout << L"\nÂñå êîðàáëè ðàçìåùåíû!" << endl;
+            wcout << L"\nÐ’ÑÐµ ÐºÐ¾Ñ€Ð°Ð±Ð»Ð¸ Ñ€Ð°Ð·Ð¼ÐµÑ‰ÐµÐ½Ñ‹!" << endl;
             break;
         }
+        break;
     }
 }
