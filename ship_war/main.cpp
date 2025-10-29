@@ -22,6 +22,14 @@ int main()
 
     setlocale(LC_CTYPE, "Russian");
 
+    //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
+    setlocale(LC_ALL, "");
+    locale::global(locale(""));
+
+    //Ускоряет вывод
+    std::ios::sync_with_stdio(false); 
+    std::wcout.tie(nullptr);
+
     HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
         DWORD dwMode = 0;

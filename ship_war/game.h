@@ -16,6 +16,8 @@ enum class Cell : int {
     Miss = 4
 };
 
+
+
 struct CursorHide {
     CursorHide() { std::wcout << L"\x1b[?25l"; std::wcout.flush(); }    //hide
     ~CursorHide() { std::wcout << L"\x1b[?25h"; std::wcout.flush(); }   //show

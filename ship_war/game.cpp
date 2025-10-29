@@ -17,11 +17,11 @@ static wstring cellDisplay(int symbol, bool showShips)
     Cell c = static_cast<Cell>(symbol);
     switch (c) {
     case Cell::Ship:  return showShips ? L"██" : L"  ";
-    case Cell::Hit:   return L"✖ ";
-    case Cell::Miss:  return L"• ";
-    case Cell::Kill:  return L"☠ ";
-    case Cell::Empty: return L"  ";
-    default:          return L"??";
+    case Cell::Hit:   return L"\033[43m  \033[0m";//L"✖ ";
+    case Cell::Miss:  return L"\033[47m  \033[0m"; //L"• ";
+    case Cell::Kill:  return L"\033[40m██\033[0m";//L"☠ ";
+    case Cell::Empty: return L"  ";//L"  ";
+    default:          return L"??";//L"??";
     }
 
 }
@@ -75,10 +75,6 @@ static wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShip
 int zero_zero[10][10] = {};
 void drawBoards(const int(&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH] = zero_zero)
 {
-    //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
-    setlocale(LC_ALL, "");
-    locale::global(locale(""));
-
     CursorHide hide; //скроем курсор на время отрисовки
 
     //очистка экрана и возврат курсора в начало
