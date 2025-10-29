@@ -8,8 +8,11 @@
 #include <locale.h>
 #include <fcntl.h>
 
-int ship_board[HEIGHT][WIDTH] = {};
-int shots_board[HEIGHT][WIDTH] = {};
+int first_ship_board[HEIGHT][WIDTH] = {};
+int first_shots_board[HEIGHT][WIDTH] = {};
+
+int second_ship_board[HEIGHT][WIDTH] = {};
+int second_shots_board[HEIGHT][WIDTH] = {};
 
 using namespace std;
 
@@ -19,20 +22,35 @@ int main()
 
     setlocale(LC_CTYPE, "Russian");
 
-    /*HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
     if (hOut != INVALID_HANDLE_VALUE) {
         DWORD dwMode = 0;
         if (GetConsoleMode(hOut, &dwMode)) {
             dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
             SetConsoleMode(hOut, dwMode);
         }
-    }*/
+    }
 
-    drawBoards(ship_board, shots_board);
+    drawBoards(first_ship_board, first_shots_board);
 
-    placeShip(ship_board);
+    placeShip(first_ship_board);
 
-    drawBoards(ship_board, shots_board);
+    drawBoards(second_ship_board, second_shots_board);
+
+    placeShip(second_ship_board);
+
+    while (true)
+    {
+        drawBoards(first_ship_board, first_shots_board);
+        makeShot(first_shots_board, second_ship_board);
+        drawBoards(first_ship_board, first_shots_board);
+
+        Sleep(5000);
+
+        drawBoards(second_ship_board, second_shots_board);
+        makeShot(second_shots_board, first_ship_board);
+        drawBoards(second_ship_board, second_shots_board);
+    }
 
     return 0;
 }

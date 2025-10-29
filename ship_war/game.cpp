@@ -248,3 +248,86 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
         } // конец по типам
     wcout << L"\n✅ Все корабли размещены! Вы закончили расстановку!\n";
 }
+
+bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x)
+{
+    if (
+        ship_board[y - 1][x - 1] == 1 || ship_board[y - 1][x] == 1 || ship_board[y - 1][x + 1] == 1 ||
+        ship_board[y + 1][x - 1] == 1 || ship_board[y + 1][x] == 1 || ship_board[y + 1][x + 1] == 1 ||
+        ship_board[y][x - 1] == 1 || ship_board[y][x] == 1 || ship_board[y][x + 1] == 1
+        )
+    {
+        return true;
+    }
+    return false;
+}
+
+bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH])
+{
+    int y, int x;
+    bool fire = false;
+    while (!fire)
+    {
+        wcout << L"Введите координаты для выстрела поля!\n";
+
+
+
+        if (y < 0 || y >= HEIGHT || x < 0 || x >= WIDTH)
+        {
+            wcout << L"Координаты вне поля!\n";
+            continue;
+        }
+
+        string input;
+        getline(cin, input);
+
+        //удаляем пробелы в начале/конце и затем все пробелы для упрощения парсинга
+        input.erase(remove_if(input.begin(), input.end(), ::isspace), input.end());
+
+        if (input.size() < 2) {
+            wcout << L"Неверный формат ввода! Пример: A3D\n";
+            continue;
+        }
+
+        //буква - первый символ
+        char letter = input[0];
+        if (!isalpha(letter)) {
+            wcout << L"Первая позиция должна быть буквой (A-J)\n";
+            continue;
+        }
+        int x1 = toupper(letter) - 'A';
+
+        //читаем цифры, начиная с позиции 1
+        int pos = 1;
+        int number = 0;
+        bool foundDigit = false;
+        while (pos < (int)input.size() && isdigit(input[pos])) {
+            foundDigit = true;
+            number = number * 10 + (input[pos] - '0');
+            ++pos;
+        }
+        if (!foundDigit) {
+            wcout << L"После буквы должно идти число (1-10)\n";
+            continue;
+        }
+        int y1 = number - 1;
+        if (ship_board[y1][x1] == 1)
+        {
+            if (isShipCellAround(ship_board, y1, x1))
+            {
+                shots_board[y1][x1] = 2;
+            }
+            else
+            {
+                shots_board[y1][x1] = 3;
+            }
+            return true;
+        }
+        else
+        {
+            shots_board[y1][x1] = 4;
+            return false;
+        }
+    }
+
+}
