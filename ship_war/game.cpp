@@ -1,134 +1,186 @@
 ﻿#include "game.h"
 
-#include <cstdlib>
-#include <windows.h>
 #include <iostream>
-#include <sstream>
-#include <unordered_map>
-#include <vector>
 #include <iomanip>
-#include <string>
-#include <locale>
-#include <array>
-#include <thread>
+#include <sstream>
+#include <cstdlib>
+#include <vector>
+#include <unordered_map>
+#include <windows.h>
 #include <conio.h>
+#include <thread>
+#include <array>
 
 using namespace std;
 
-//Возврат символа для отображения ячейки
-static wstring cellDisplay(int symbol, bool showShips)
+//определения внешних переменных
+string header_utf8;
+string sep_utf8;
+string endsep_utf8;
+bool precomputed = false;
+
+//Вспомогательное: безопасно получить строку по Cell
+static const string cellFor(int symbol, bool showShips)
 {
     Cell c = static_cast<Cell>(symbol);
-    switch (c) 
+    switch (c)
     {
-    case Cell::Ship:  return showShips ? L"██" : L"  ";
-    case Cell::Hit:   return L"\033[43m  \033[0m";//L"✖ ";
-    case Cell::Miss:  return L"\033[47m  \033[0m"; //L"• ";
-    case Cell::Kill:  return L"\033[40m██\033[0m";//L"☠ ";
-    case Cell::Empty: return L"  ";//L"  ";
-    case Cell::Cursor: return L"✖ ";
-    default:          return L"??";//L"??";
+    case Cell::Ship:  return showShips ? u8"██" : u8"  ";
+    case Cell::Hit:   return u8"✖ ";
+    case Cell::Miss:  return u8"• ";
+    case Cell::Kill:  return u8"☠ ";
+    case Cell::Empty: return u8"  ";
+    case Cell::Cursor:return u8"[]";
+    default:          return u8"??";
     }
-
 }
 
-//Создать заголовок(буквы столбцов)
-static wstring makeHeader()
+void precomputeLayout()
 {
-    wostringstream ss;
-    ss << L"   │";
-    for (int j = 0; j < WIDTH; ++j) 
-    {
-        ss << setw(2) << left << (wchar_t)(L'A' + j) << L"│";
-    }
-    return ss.str();
-}
+    if (precomputed) return;
+    precomputed = true;
 
-static wstring makeHorizontSeparator(bool isEnd)
-{
-    wostringstream ss;
-    wstring val = L"";
-    val += (isEnd) ? L"───┴" : L"───┼";
-    ss << val;
-    for (int j = 0; j < WIDTH ; ++j) {
-        val = L"──";
-        ss << val;
-        if (j + 1 < WIDTH) 
-        { 
-            val = (isEnd) ? L"┴" : L"┼";
-            ss << val; 
-        }
-        else
+    //header: "   │ A│ B│ C│"
+    {
+        std::string s;
+        s.reserve(256);
+        s += "   ";
+        s += u8"│";
+        for (int j = 0; j < WIDTH; ++j) 
         {
-            val = (isEnd) ? L"┘" : L"┤";
-            ss << val;
+            char buf[8];
+            snprintf(buf, sizeof(buf), " %c", 'A' + j);
+            s += buf;
+            s += u8"│";
         }
+        header_utf8 = std::move(s);
     }
-    return ss.str();
+
+    //sep: "───┼──┼"
+    {
+        std::string s;
+        s.reserve(256);
+        s += u8"───";
+        s += u8"┼";
+        for (int j = 0; j < WIDTH; ++j) {
+            s += u8"──";
+            if (j + 1 < WIDTH) s += u8"┼";
+            else s += u8"┤";
+        }
+        sep_utf8 = std::move(s);
+    }
+
+    //end separator
+    {
+        std::string s;
+        s.reserve(256);
+        s += u8"───";
+        s += u8"┴";
+        for (int j = 0; j < WIDTH; ++j) {
+            s += u8"──";
+            if (j + 1 < WIDTH) s += u8"┴";
+            else s += u8"┘";
+        }
+        endsep_utf8 = std::move(s);
+    }
 }
 
-static wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShips)
-{
-    wostringstream ss;
-    ss << setw(2) << (rowIndex + 1) << L" │";
-    for (int j = 0; j < WIDTH; ++j)
-    {
-        wstring content = cellDisplay(board_row[j], revealShips);
-        ss << content << L"│";
-    }
-    return ss.str();
-}
-int zero_zero[10][10] = {};
+int zero_zero[HEIGHT][WIDTH] = {};
+//Быстрая отрисовка: собираем большой std::string и один вызов записи
 void drawBoards(const int(&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH] = zero_zero)
 {
-    CursorHide hide; //скроем курсор на время отрисовки
+    if (!precomputed) precomputeLayout();
 
-    //очистка экрана и возврат курсора в начало
+    std::string out;
+    //рассчитаем примерный размер и зарезервируем
+    //каждая строк содержит: left_line (~ 3 + WIDTH*(2+1) ) + tab + right_line + '\n'
+    size_t approx_per_line = 3 + (WIDTH * 3) + 1 + (WIDTH * 3) + 2; // грубая оценка
+    out.reserve((HEIGHT * 2 + 6) * approx_per_line);
 
-    system("cls");
+    //очистка экрана и возврат курсора в начало (используем VT)
+    out += "\x1b[2J\x1b[H"; //clear screen + cursor home
 
+    //заголовки
+    out += header_utf8;
+    out += '\t';
+    out += header_utf8;
+    out += '\n';
 
-    wstring header = makeHeader();
-    wstring sep = makeHorizontSeparator(false);
-    wstring endSep = makeHorizontSeparator(true);
+    out += sep_utf8;
+    out += '\t';
+    out += sep_utf8;
+    out += '\n';
 
-    array<wstring, HEIGHT * 2 + 4> leftLines;
-    array<wstring, HEIGHT * 2 + 4> rightLines;
-
-    //заголовок
-    leftLines[0] = header;
-    rightLines[0] = header;
-
-    //верхняя граница под заголовком
-    leftLines[1] = sep;
-    rightLines[1] = sep;
-
-    int outIndex = 2;
+    //строки досок
     for (int i = 0; i < HEIGHT; ++i) {
-        leftLines[outIndex] = makeRow(ship_board[i], i, true);      //revealShips?
-        rightLines[outIndex] = makeRow(shots_board[i], i, false);   //revealShips?
-        ++outIndex;
+        //номер строки (2 знака) + " │"
+        char rownum[8];
+        snprintf(rownum, sizeof(rownum), "%2d ", i + 1);
+        out += rownum;
+        out += u8"│";
 
-        leftLines[outIndex] = (i + 1 < HEIGHT) ? sep : endSep;
-        rightLines[outIndex] = (i + 1 < HEIGHT) ? sep : endSep;
-        ++outIndex;
+        //левая доска (ship_board) — revealShips = true
+        for (int j = 0; j < WIDTH; ++j) {
+            const std::string& cell = cellFor(ship_board[i][j], true);
+            out += cell;
+            out += u8"│";
+        }
+
+        //TAB между досками
+        out += '\t';
+
+        //правая доска (shots_board) — revealShips = false
+        snprintf(rownum, sizeof(rownum), "%2d ", i + 1);
+        out += rownum;
+        out += u8"│";
+
+        for (int j = 0; j < WIDTH; ++j) 
+        {
+            const std::string& cell = cellFor(shots_board[i][j], false);
+            out += cell;
+            out += u8"│";
+        }
+
+        out += '\n';
+
+        //разделитель между строками
+        if (i + 1 < HEIGHT) 
+        {
+            out += sep_utf8;
+            out += '\t';
+            out += sep_utf8;
+            out += '\n';
+        }
+        else 
+        {
+            out += endsep_utf8;
+            out += '\t';
+            out += endsep_utf8;
+            out += '\n';
+        }
     }
 
-    wostringstream finalOut;
-    for (int i = 0; i < outIndex; i++)
+    //запись в консоль единым вызовом (Windows)
+    HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (hOut != INVALID_HANDLE_VALUE) 
     {
-        finalOut << leftLines[i] << L"\t" << rightLines[i] << L'\n';
+        DWORD written = 0;
+        //WriteFile работает с байтами, а у нас UTF-8 в std::string — всё ок.
+        WriteFile(hOut, out.data(), static_cast<DWORD>(out.size()), &written, nullptr);
     }
-
-    wcout << finalOut.str();
-    wcout.flush();
+    else 
+    {
+        // fallback
+        std::cout << "FFFFUUUUUUUUCCCCKKKKKK" << out;
+        std::cout.flush();
+    }
 }
 
 bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
     if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
         y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH)
     {
-        wcout << L"Координаты вне поля!\n";
+        std::cout << "Координаты вне поля!\n";
         return false;
     }
 
@@ -144,7 +196,7 @@ bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
         {
             if (ship_board[y][x] == 1)
             {
-                wcout << L"Между кораблями должна быть пустая клетка!" << endl;
+                std::cout << "Между кораблями должна быть пустая клетка!" << endl;
                 return false;
             }
         }
@@ -210,7 +262,7 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
     std::unordered_map<int, int> placedCounts = { {4, 0}, {3, 0}, {2, 0}, {1, 0} };
     int totalShipsPlaced = 0;
 
-    wcout << L"WASD: Перемещение, Q: Вращение, ENTER: Разместить. \n";
+    std::cout << "WASD: Перемещение, Q: Вращение, ENTER: Разместить. \n";
 
     for (int length : shipLengths)
     {
@@ -227,8 +279,8 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
             markCurrentShip(temp_board, ship_board, currentShip);
             drawBoards(temp_board);
 
-            wcout << L"\nРазместите корабль длиной " << length
-                << L" (" << (placedCounts[length] + 1) << L" из " << SHIP_LIMITS.at(length) << L"): ";
+            std::cout << "\nРазместите корабль длиной " << length
+                << " (" << (placedCounts[length] + 1) << " из " << SHIP_LIMITS.at(length) << "): ";
 
             wchar_t symbol = _getch();
 
@@ -253,13 +305,15 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
             case L'D': case 194: case 77: 
                 currentShip.col = min(maxCol, currentShip.col + 1);
                 break;
-
-            case L'Q': 
+            case L'R': 
                 currentShip.isHorizontal = !currentShip.isHorizontal;
                 currentShip.row = min(currentShip.row, HEIGHT - (currentShip.isHorizontal ? 1 : length));
                 currentShip.col = min(currentShip.col, WIDTH - (currentShip.isHorizontal ? length : 1));
                 break;
 
+            case L'Q': case 27: 
+                exit(0);
+                break;
             case '\r':
             {
                 int y1 = currentShip.row;
@@ -269,7 +323,7 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
 
                 if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
                     y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH) {
-                    wcout << L"Ошибка: Корабль выходит за пределы поля! Попробуйте снова.\n";
+                    std::cout << "Ошибка: Корабль выходит за пределы поля! Попробуйте снова.\n";
                     break;
                 }
 
@@ -285,13 +339,14 @@ void placeShip(int(&ship_board)[HEIGHT][WIDTH])
                 }
             }
             default:
+                std::cout << symbol;
                 break;
             }
         }
     }
 
     drawBoards(ship_board);
-    wcout << L"\nВсе 10 кораблей размещены! Вы закончили расстановку! Нажмите Enter для продолжения...";
+    std::cout << "\nВсе 10 кораблей размещены! Вы закончили расстановку! Нажмите Enter для продолжения...";
 
     string temp;
     getline(cin, temp);
