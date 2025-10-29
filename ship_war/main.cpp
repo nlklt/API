@@ -22,9 +22,6 @@ int main()
 
     setlocale(LC_CTYPE, "Russian");
 
-    std::ios::sync_with_stdio(false);
-    std::cout.tie(nullptr);
-
     //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
     setlocale(LC_ALL, "");
     locale::global(locale(""));
