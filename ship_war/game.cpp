@@ -1,204 +1,250 @@
 ﻿#include "game.h"
 
+#include <windows.h>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
 #include <string>
+#include <locale>
+#include <array>
+#include <thread>
 
 using namespace std;
 
-wstring horizonSeparator()
+//Возврат символа для отображения ячейки
+static wstring cellDisplay(int symbol, bool showShips)
 {
-    wstring separator = L"";
-    for (int j = 0; j < WIDTH + 1; j++)
-    {
-        separator += L"⎯⎯┼";
+    Cell c = static_cast<Cell>(symbol);
+    switch (c) {
+    case Cell::Ship:  return showShips ? L"██" : L"  ";
+    case Cell::Hit:   return L"✖ ";
+    case Cell::Miss:  return L"• ";
+    case Cell::Kill:  return L"☠ ";
+    case Cell::Empty: return L"  ";
+    default:          return L"??";
     }
-    return separator;
+
 }
 
-void drawBoards(const int(&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH])
+//Создать заголовок(буквы столбцов)
+static wstring makeHeader()
 {
-	std::wstring display;
-
-	std::wcout << L"\x1b[?25l";	//исправить на очистку экрана
-    display += L"\x1b[H";
-
-    //Поле с корабликами
-	display += L"  │";
-	for (int j = 0; j < WIDTH; j++)
-	{
-        display += (wchar_t)(L'A' + j + 0xFEE0);
-        display += L'│';
-	}
-
-    //Разрыв между полями
-	display += L"\t";
-
-    //Поле с выстрелами
-    display += L"  │";
-    for (int j = 0; j < WIDTH; j++)
+    wostringstream ss;
+    ss << L"   │";
+    for (int j = 0; j < WIDTH; ++j) 
     {
-        display += (wchar_t)(L'A' + j + 0xFEE0);
-        display += L'│';
+        ss << setw(2) << left << (wchar_t)(L'A' + j) << L"│";
     }
-
-	display += L'\n';
-
-    //Поле с корабликами
-    display += horizonSeparator();
-
-    //Разрыв между полями
-    display += L"\t";
-
-    //Поле с выстрелами
-    display += horizonSeparator();
-
-	display += L'\n';
-
-    wstring number;
-	for (int i = 0; i < HEIGHT; i++)
-	{
-        //Строка с корабликами
-        number = to_wstring(i + 1);
-        display += number;
-        if (i + 1 < 10) { display += L' '; }
-        display += L"│";
-
-		for (int j = 0; j < WIDTH; j++)
-		{
-			display += (ship_board[i][j]) ? L"╳╳│" : L"XX│";
-		}
-
-        //Разрыв между полями
-        display += L" \t";
-
-        //Строка с корабликами
-        number = to_wstring(i + 1);
-        display += number;
-        if (i + 1 < 10) { display += L' '; }
-        display += L"│";
-
-		for (int j = 0; j < WIDTH; j++)
-		{
-			display += (shots_board[i][j]) ? L"..│" : L"SS│";
-		}
-
-        display += L'\n';
-        display += horizonSeparator();
-
-        //Разрыв между полями
-        display += L" \t";
-
-        display += horizonSeparator();
-        display += L'\n';
-	}
-
-    wcout << display;
+    return ss.str();
 }
 
+static wstring makeHorizontSeparator(bool isEnd)
+{
+    wostringstream ss;
+    wstring val = L"";
+    val += (isEnd) ? L"───┴" : L"───┼";
+    ss << val;
+    for (int j = 0; j < WIDTH ; ++j) {
+        val = L"──";
+        ss << val;
+        if (j + 1 < WIDTH) 
+        { 
+            val = (isEnd) ? L"┴" : L"┼";
+            ss << val; 
+        }
+        else
+        {
+            val = (isEnd) ? L"┘" : L"┤";
+            ss << val;
+        }
+    }
+    return ss.str();
+}
 
-bool isPlace(int(&ship_board)[HEIGHT][WIDTH], int x, int y){
-    if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
-        wcout << L"Координаты вне поля!" << endl;
+static wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShips)
+{
+    wostringstream ss;
+    ss << setw(2) << (rowIndex + 1) << L" │";
+    for (int j = 0; j < WIDTH; ++j)
+    {
+        wstring content = cellDisplay(board_row[j], revealShips);
+        ss << content << L"│";
+    }
+    return ss.str();
+}
+int zero_zero[10][10] = {};
+void drawBoards(const int(&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH] = zero_zero)
+{
+    //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
+    setlocale(LC_ALL, "");
+    locale::global(locale(""));
+
+    CursorHide hide; //скроем курсор на время отрисовки
+
+    //очистка экрана и возврат курсора в начало
+    wcout << L"\x1b[2J\x1b[H";
+
+    wstring header = makeHeader();
+    wstring sep = makeHorizontSeparator(false);
+    wstring endSep = makeHorizontSeparator(true);
+
+    array<wstring, HEIGHT * 2 + 4> leftLines;
+    array<wstring, HEIGHT * 2 + 4> rightLines;
+
+    //заголовок
+    leftLines[0] = header;
+    rightLines[0] = header;
+
+    //верхняя граница под заголовком
+    leftLines[1] = sep;
+    rightLines[1] = sep;
+
+    int outIndex = 2;
+    for (int i = 0; i < HEIGHT; ++i) {
+        leftLines[outIndex] = makeRow(ship_board[i], i, true);      //revealShips?
+        rightLines[outIndex] = makeRow(shots_board[i], i, false);   //revealShips?
+        ++outIndex;
+
+        leftLines[outIndex] = (i + 1 < HEIGHT) ? sep : endSep;
+        rightLines[outIndex] = (i + 1 < HEIGHT) ? sep : endSep;
+        ++outIndex;
+    }
+
+    wostringstream finalOut;
+    for (int i = 0; i < outIndex; i++)
+    {
+        finalOut << leftLines[i] << L"\t" << rightLines[i] << L'\n';
+    }
+
+    wcout << finalOut.str();
+    wcout.flush();
+}
+
+bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
+    if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
+        y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH)
+    {
+        wcout << L"Координаты вне поля!\n";
         return false;
     }
-    if (ship_board[x][y] == 1) {
-        wcout << L"Здесь уже есть корабль!" << endl;
-        return false;
+
+    int minY = min(y1, y2);
+    int minX = min(x1, x2);
+
+    int maxY = max(y1, y2);
+    int maxX = max(x1, x2);
+
+    for (int y = minY - 1; y < maxY + 1; ++y)
+    {
+        for (int x = minX - 1; x < maxX + 1; ++x)
+        {
+            if (ship_board[y][x] == 1)
+            {
+                wcout << L"Между кораблями должна быть пустая клетка!" << endl;
+                return false;
+            }
+        }
     }
     return true;
 }
 
-void placeShip(int(&ship_board)[HEIGHT][WIDTH]) {
-    for (int i = 0; i < HEIGHT; i++) {
-        for (int j = 0; j < WIDTH; j++) {
-            ship_board[i][j] = 0;
-        }
-    }
+void placeShip(int(&ship_board)[HEIGHT][WIDTH])
+{
 
-    int ships_to_place[4] = { 1, 2, 3, 4 };
+    pair<int, int>  ships_of_type[4] = { {1, 4}, {2, 3}, {3, 2}, {4, 1} };
 
-    while (true) {
-        bool done = true;
-        for (int i = 0; i < 4; i++) {
-            if (ships_to_place[i] > 0) {
-                done = false;
-                break;
-            }
-        }
-        if (done) {
-            wcout << L"\n✅ Все корабли размещены! Выход из режима расстановки.\n" << endl;
-            break;
-        }
+    wcout << L"Размещение: введите координату начала (буква + число) и направление (W/A/S/D). Примеры: (A3D), (b10 w)";
 
-        wcout << L"\nВведите координаты начала и конца корабля (например: A1 A4): ";
-        string input;
-        getline(cin, input);
+        for (int type = 0; type < 4; ++type)
+        {
+            int count = ships_of_type[type].first;
+            int length = ships_of_type[type].second;
 
-        if (input.length() < 5) {
-            wcout << L"Неверный формат ввода!" << endl;
-            continue;
-        }
+            for (int idx = 0; idx < count; idx++)
+            {
+                while (true) {
+                    //запрос ввода
+                    wcout << L"\nРазместите корабль длиной " << length << L" (" << (idx + 1) << L"/" << count << L"): ";
+                    string input;
+                    getline(cin, input);
 
-        char col1 = toupper(input[0]);
-        char col2 = toupper(input[3]);
-        int row1 = input[1] - '1';
-        int row2 = input[4] - '1';
-        int x1 = col1 - 'A';
-        int x2 = col2 - 'A';
-        int y1 = row1;
-        int y2 = row2;
+                    //удаляем пробелы в начале/конце и затем все пробелы для упрощения парсинга
+                    input.erase(remove_if(input.begin(), input.end(), ::isspace), input.end());
 
-        if (x1 < 0 || x1 >= WIDTH || x2 < 0 || x2 >= WIDTH ||
-            y1 < 0 || y1 >= HEIGHT || y2 < 0 || y2 >= HEIGHT) {
-            wcout << L"Координаты вне поля!" << endl;
-            continue;
-        }
+                    if (input.size() < 2) {
+                        wcout << L"Неверный формат ввода! Пример: A3D\n";
+                        continue;
+                    }
 
-        if (x1 != x2 && y1 != y2) {
-            wcout << L"Корабль должен быть строго по горизонтали или вертикали!" << endl;
-            continue;
-        }
+                    //буква - первый символ
+                    char letter = input[0];
+                    if (!isalpha(letter)) {
+                        wcout << L"Первая позиция должна быть буквой (A-J)\n";
+                        continue;
+                    }
+                    int x1 = toupper(letter) - 'A';
 
-        int dx = (x1 == x2) ? 0 : (x2 > x1 ? 1 : -1);
-        int dy = (y1 == y2) ? 0 : (y2 > y1 ? 1 : -1);
-        int length = max(abs(x2 - x1), abs(y2 - y1)) + 1;
+                    //читаем цифры, начиная с позиции 1
+                    int pos = 1;
+                    int number = 0;
+                    bool foundDigit = false;
+                    while (pos < (int)input.size() && isdigit(input[pos])) {
+                        foundDigit = true;
+                        number = number * 10 + (input[pos] - '0');
+                        ++pos;
+                    }
+                    if (!foundDigit) {
+                        wcout << L"После буквы должно идти число (1-10)\n";
+                        continue;
+                    }
+                    int y1 = number - 1; // перевод в 0-индекс
 
-        if (length < 1 || length > 4) {
-            wcout << L"Недопустимая длина корабля!" << endl;
-            continue;
-        }
+                    //направление: если есть символ после числа - берем его, иначе по умолчанию вправо
+                    char dir = 'R';
+                    if (pos < (int)input.size()) {
+                        dir = input[pos];
+                        dir = toupper(dir);
+                    }
 
-        int index = 4 - length;
-        if (ships_to_place[index] <= 0) {
-            wcout << L"Все корабли длины " << length << L" уже размещены!" << endl;
-            continue;
-        }
+                    //определяем направления
+                    int dy = 0, dx = 0;
+                    if (dir == 'W')      { dy = -1; dx = 0; } //вверх
+                    else if (dir == 'S') { dy = +1; dx = 0; } //вниз
+                    else if (dir == 'A') { dy = 0; dx = -1; } //влево
+                    else if (dir == 'D') { dy = 0; dx = +1; } //вправо
+                    else { dy = 0; dx = +1; }
 
-        bool can_place = true;
-        int cx = x1, cy = y1;
-        for (int i = 0; i < length; i++) {
-            if (ship_board[cy][cx] == 1) {
-                can_place = false;
-                break;
-            }
-            cx += dx;
-            cy += dy;
-        }
+                    //координаты конца корабля
+                    int y2 = y1 + dy * (length - 1);
+                    int x2 = x1 + dx * (length - 1);
 
-        if (!can_place) {
-            wcout << L"Корабль пересекается с другим!" << endl;
-            continue;
-        }
+                    //проверка границ конца и начала
+                    if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
+                        y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH) 
+                    {
+                        wcout << L"Корабль выходит за пределы поля. Попробуйте снова.\n";
+                        continue;
+                    }
 
-        cx = x1; cy = y1;
-        for (int i = 0; i < length; i++) {
-            ship_board[cy][cx] = 1;
-            cx += dx;
-            cy += dy;
-        }
+                    //проверка на возможность поставить (включая окружение)
+                    if (!canPlace(ship_board, y1, x1, y2, x2)) 
+                    {
+                        continue;
+                    }
 
-        ships_to_place[index]--;
-        wcout << L"Корабль длины " << length << L" размещён!" << endl;
-    }
+                    //ставим корабль
+                    for (int k = 0; k < length; ++k) 
+                    {
+                        int yy = y1 + dy * k;
+                        int xx = x1 + dx * k;
+                        ship_board[yy][xx] = 1;
+                    }
+
+                    drawBoards(ship_board);
+                    wcout << L"Корабль успешно размещён.\n";
+                    break; // выходим из цикла ввода для этого корабля
+                } // конец while(true) ввода данного корабля
+            } // конец всех кораблей данного типа
+        } // конец по типам
+    wcout << L"\n✅ Все корабли размещены! Вы закончили расстановку!\n";
 }
