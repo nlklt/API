@@ -207,6 +207,7 @@ bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
 std::unordered_map<std::string, int> getCountOfShip(const int (& ships_of_type)[HEIGHT][WIDTH])
 {
     int checked_field[HEIGHT][WIDTH] = {};
+
     unordered_map<string, int> length = {
         {"One", 0},
         {"Two", 0},
@@ -261,32 +262,37 @@ std::unordered_map<std::string, int> getCountOfShip(const int (& ships_of_type)[
     return length;
 }
 
-void placeShipd(int(&ship_board)[HEIGHT][WIDTH])
+void placeShip(int(&ship_board)[HEIGHT][WIDTH])
 {
     pair<int, int>  ships_of_type[4] = { {1, 4}, {2, 3}, {3, 2}, {4, 1} };
 
+    SetConsoleOutputCP(65001);
+    SetConsoleCP(1251);
     wcout << L"WASD для перемещения";
     getCountOfShip(ship_board);
     int index_i = 0, index_j = 0;
     while (true)
     {
-        char symbol;
-        symbol = _getche();
-        switch (symbol)
+        wchar_t symbol = _getche();
+        switch (toupper(symbol))
         {
-        case 'W':
+        case L'W':
+        case 214:
             ship_board[index_i][index_j] = 0;
             index_i--;
             break;
-        case 'A':
+        case L'A':
+        case 212:
             ship_board[index_i][index_j] = 0;
             index_j--;
             break;
-        case 'S':
+        case L'S':
+        case 219:
             ship_board[index_i][index_j] = 0;
             index_i++;
             break;
-        case 'D':
+        case L'D':
+        case 194:
             ship_board[index_i][index_j] = 0;
             index_j++;
             break;
@@ -295,113 +301,12 @@ void placeShipd(int(&ship_board)[HEIGHT][WIDTH])
             index_i++;
             break;
         default:
-            wcout << L"Ошибка ввода";
+            wcout << L"Ошибка ввода" << toupper(symbol);
             break;
         }
         ship_board[index_i][index_j] = 9;
         drawBoards(ship_board);
     }
-}
-
-void placeShip(int(&ship_board)[HEIGHT][WIDTH])
-{
-
-    pair<int, int>  ships_of_type[4] = { {1, 4}, {2, 3}, {3, 2}, {4, 1} };
-
-    wcout << L"Размещение: введите координату начала (буква + число) и направление (W/A/S/D). Примеры: (A3D), (b10 w)";
-
-        for (int type = 0; type < 4; ++type)
-        {
-            int count = ships_of_type[type].first;
-            int length = ships_of_type[type].second;
-
-            for (int idx = 0; idx < count; idx++)
-            {
-                while (true) {
-                    //запрос ввода
-                    wcout << L"\nРазместите корабль длиной " << length << L" (" << (idx + 1) << L"/" << count << L"): ";
-                    string input;
-                    getline(cin, input);
-
-                    //удаляем пробелы в начале/конце и затем все пробелы для упрощения парсинга
-                    input.erase(remove_if(input.begin(), input.end(), ::isspace), input.end());
-
-                    if (input.size() < 2) {
-                        wcout << L"Неверный формат ввода! Пример: A3D\n";
-                        continue;
-                    }
-
-                    //буква - первый символ
-                    char letter = input[0];
-                    if (!isalpha(letter)) {
-                        wcout << L"Первая позиция должна быть буквой (A-J)\n";
-                        continue;
-                    }
-                    int x1 = toupper(letter) - 'A';
-
-                    //читаем цифры, начиная с позиции 1
-                    int pos = 1;
-                    int number = 0;
-                    bool foundDigit = false;
-                    while (pos < (int)input.size() && isdigit(input[pos])) {
-                        foundDigit = true;
-                        number = number * 10 + (input[pos] - '0');
-                        ++pos;
-                    }
-                    if (!foundDigit) {
-                        wcout << L"После буквы должно идти число (1-10)\n";
-                        continue;
-                    }
-                    int y1 = number - 1; // перевод в 0-индекс
-
-                    //направление: если есть символ после числа - берем его, иначе по умолчанию вправо
-                    char dir = 'R';
-                    if (pos < (int)input.size()) {
-                        dir = input[pos];
-                        dir = toupper(dir);
-                    }
-
-                    //определяем направления
-                    int dy = 0, dx = 0;
-                    if (dir == 'W')      { dy = -1; dx = 0; } //вверх
-                    else if (dir == 'S') { dy = +1; dx = 0; } //вниз
-                    else if (dir == 'A') { dy = 0; dx = -1; } //влево
-                    else if (dir == 'D') { dy = 0; dx = +1; } //вправо
-                    else { dy = 0; dx = +1; }
-
-                    //координаты конца корабля
-                    int y2 = y1 + dy * (length - 1);
-                    int x2 = x1 + dx * (length - 1);
-
-                    //проверка границ конца и начала
-                    if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
-                        y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH) 
-                    {
-                        wcout << L"Корабль выходит за пределы поля. Попробуйте снова.\n";
-                        continue;
-                    }
-
-                    //проверка на возможность поставить (включая окружение)
-                    if (!canPlace(ship_board, y1, x1, y2, x2)) 
-                    {
-                        continue;
-                    }
-
-                    //ставим корабль
-                    for (int k = 0; k < length; ++k) 
-                    {
-                        int yy = y1 + dy * k;
-                        int xx = x1 + dx * k;
-                        ship_board[yy][xx] = 1;
-                    }
-
-                    drawBoards(ship_board);
-                    wcout << L"Корабль успешно размещён.\n";
-                    break; // выходим из цикла ввода для этого корабля
-                } // конец while(true) ввода данного корабля
-            } // конец всех кораблей данного типа
-        } // конец по типам
-    wcout << L"\nВсе корабли размещены! Вы закончили расстановку!\n";
 }
 
 bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x)

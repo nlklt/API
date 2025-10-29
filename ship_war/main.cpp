@@ -39,8 +39,8 @@ int main()
 
     drawBoards(first_ship_board, first_shots_board);
     
-    placeShipd(first_ship_board);
-    placeShipd(first_ship_board);
+    placeShip(first_ship_board);
+    placeShip(second_ship_board);
     
     while (true)
     {
