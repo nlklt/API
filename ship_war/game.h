@@ -2,6 +2,8 @@
 
 #include <iostream>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 const int WIDTH = 10;
 const int HEIGHT = 10;
@@ -13,7 +15,8 @@ enum class Cell : int {
     Ship = 1,
     Hit = 2,
     Kill = 3,
-    Miss = 4
+    Miss = 4,
+    Cursor = 9,
 };
 
 struct CursorHide {
@@ -27,8 +30,10 @@ static std::wstring makeHorizontSeparator(bool isEnd);
 static std::wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShips);
 
 void placeShip(int (&ship_board)[HEIGHT][WIDTH]);
+void placeShipd(int(&ship_board)[HEIGHT][WIDTH]);
 bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
 bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x);
+std::unordered_map<std::string, int> getCountOfShip(const int(&ships_of_type)[HEIGHT][WIDTH]);
 
 //bool checkWin();
 bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH]);
