@@ -15,6 +15,17 @@ using namespace std;
 
 int main()
 {
+    _setmode(_fileno(stdout), _O_U16TEXT);
+
+
+    //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
+    setlocale(LC_ALL, "");
+    locale::global(locale(""));
+
+    //Ускоряет вывод
+    std::ios::sync_with_stdio(false); 
+    std::wcout.tie(nullptr);
+
     //установка кодировки вывода в UTF-8
     SetConsoleOutputCP(CP_UTF8);
     //отключение синхронизации с stdio для скорости
