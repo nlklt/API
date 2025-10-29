@@ -29,8 +29,7 @@ static std::wstring makeHeader();
 static std::wstring makeHorizontSeparator(bool isEnd);
 static std::wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShips);
 
-void placeShip(int (&ship_board)[HEIGHT][WIDTH]);
-void placeShipd(int(&ship_board)[HEIGHT][WIDTH]);
+void placeShip(int(&ship_board)[HEIGHT][WIDTH]);
 bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
 bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x);
 std::unordered_map<std::string, int> getCountOfShip(const int(&ships_of_type)[HEIGHT][WIDTH]);
