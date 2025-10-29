@@ -45,13 +45,11 @@ int main()
     while (true)
     {
         drawBoards(first_ship_board, first_shots_board);
-        makeShot(first_shots_board, second_ship_board);
         drawBoards(first_ship_board, first_shots_board);
 
         Sleep(500);
 
         drawBoards(second_ship_board, second_shots_board);
-        makeShot(second_shots_board, first_ship_board);
         drawBoards(second_ship_board, second_shots_board);
     }
 

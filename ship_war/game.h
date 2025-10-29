@@ -27,16 +27,12 @@ extern bool precomputed;
 void precomputeLayout();
 
 struct CursorHide {
-    CursorHide() { std::wcout << L"\x1b[?25l"; std::wcout.flush(); }    //hide
-    ~CursorHide() { std::wcout << L"\x1b[?25h"; std::wcout.flush(); }   //show
+    CursorHide() { std::cout << "\x1b[?25l"; std::cout.flush(); }    //hide
+    ~CursorHide() { std::cout << "\x1b[?25h"; std::cout.flush(); }   //show
 };
 
 void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH]);
 
 void placeShip(int(&ship_board)[HEIGHT][WIDTH]);
 bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
-bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x);
 std::unordered_map<std::string, int> getCountOfShip(const int(&ships_of_type)[HEIGHT][WIDTH]);
-
-//bool checkWin();
-bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH]);
