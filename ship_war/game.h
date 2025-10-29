@@ -31,4 +31,4 @@ bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
 bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x);
 
 //bool checkWin();
-bool makeShot(const int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH]);
+bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH]);

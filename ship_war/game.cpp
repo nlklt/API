@@ -264,19 +264,10 @@ bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x)
 
 bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH])
 {
-    int y, int x;
     bool fire = false;
     while (!fire)
     {
         wcout << L"Введите координаты для выстрела поля!\n";
-
-
-
-        if (y < 0 || y >= HEIGHT || x < 0 || x >= WIDTH)
-        {
-            wcout << L"Координаты вне поля!\n";
-            continue;
-        }
 
         string input;
         getline(cin, input);
@@ -311,6 +302,15 @@ bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][W
             continue;
         }
         int y1 = number - 1;
+
+
+        if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH)
+        {
+            wcout << L"Координаты вне поля!\n";
+            continue;
+        }
+
+
         if (ship_board[y1][x1] == 1)
         {
             if (isShipCellAround(ship_board, y1, x1))
@@ -329,5 +329,5 @@ bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][W
             return false;
         }
     }
-
+    return true;
 }
