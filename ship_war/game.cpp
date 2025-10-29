@@ -21,6 +21,7 @@ static wstring cellDisplay(int symbol, bool showShips)
     Cell c = static_cast<Cell>(symbol);
     switch (c) 
     {
+    case Cell::Ship:  return showShips ? L"██" : L"  ";
     case Cell::Hit:   return L"\033[43m  \033[0m";//L"✖ ";
     case Cell::Miss:  return L"\033[47m  \033[0m"; //L"• ";
     case Cell::Kill:  return L"\033[40m██\033[0m";//L"☠ ";
@@ -137,9 +138,9 @@ bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
     int maxY = max(y1, y2);
     int maxX = max(x1, x2);
 
-    for (int y = minY - 1; y < maxY + 1; ++y)
+    for (int y = minY - 1; y <= maxY + 1; y++)
     {
-        for (int x = minX - 1; x < maxX + 1; ++x)
+        for (int x = minX - 1; x <= maxX + 1; x++)
         {
             if (ship_board[y][x] == 1)
             {
@@ -151,192 +152,147 @@ bool canPlace(int(&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2) {
     return true;
 }
 
+struct ShipPlacement {
+    int row;
+    int col;
+    int length;
+    bool isHorizontal; 
+};
 
-
-std::unordered_map<std::string, int> getCountOfShip(const int (& ships_of_type)[HEIGHT][WIDTH])
+void placeFinalShip(int(&ship_board)[HEIGHT][WIDTH], const ShipPlacement& currentShip)
 {
-    int checked_field[HEIGHT][WIDTH] = {};
+    for (int k = 0; k < currentShip.length; ++k) {
+        int r = currentShip.row + (currentShip.isHorizontal ? 0 : k);
+        int c = currentShip.col + (currentShip.isHorizontal ? k : 0);
 
-    unordered_map<string, int> length = {
-        {"One", 0},
-        {"Two", 0},
-        {"Three", 0},
-        {"Four", 0}
-    };
-    
-    for (int i = 0; i < HEIGHT; i++)
-    {
-        for (int j = 0; j < WIDTH; j++)
-        {
-            checked_field[i][j] = ships_of_type[i][j];
+        if (r >= 0 && r < HEIGHT && c >= 0 && c < WIDTH) {
+            ship_board[r][c] = 1;
+        }
+    }
+}
+
+void markCurrentShip(int(&temp_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH], const ShipPlacement& currentShip) {
+    for (int i = 0; i < HEIGHT; ++i) {
+        for (int j = 0; j < WIDTH; ++j) {
+            temp_board[i][j] = ship_board[i][j];
         }
     }
 
-    for (int i = 0; i < HEIGHT; i++)
-    {
-        for (int j = 0; j < WIDTH; j++)
-        {
-            if (checked_field[i][j] == 1)
-            {
-                checked_field[i][j] = 0;
-                int indexer_i = i, indexer_j = j;
-                int ship_length = 1;
-                while (checked_field[indexer_i + 1][indexer_j] == 1 || checked_field[indexer_i][indexer_j + 1] == 1)
-                {
-                    checked_field[indexer_i][indexer_i] = 0;
-                    checked_field[indexer_i][indexer_j + 1] == 1 ? indexer_j++ : indexer_i++;
-                    ship_length++;
-                }
-                switch (ship_length)
-                {
-                case 1:
-                    length["One"]++;
-                    break;
-                case 2:
-                    length["Two"]++;
-                    break;
-                case 3:
-                    length["Three"]++;
-                    break;
-                case 4:
-                    length["Four"]++;
-                    break;
-                default:
-                    wcout << L"Ошибка ввода";
-                    break;
+    if (currentShip.length > 0) {
+        for (int k = 0; k < currentShip.length; ++k) {
+            int r = currentShip.row + (currentShip.isHorizontal ? 0 : k);
+            int c = currentShip.col + (currentShip.isHorizontal ? k : 0);
+
+            if (r >= 0 && r < HEIGHT && c >= 0 && c < WIDTH) {
+                if (temp_board[r][c] != 1) {
+                    temp_board[r][c] = (int)Cell::Cursor;
                 }
             }
         }
     }
-    return length;
 }
+
+
 
 void placeShip(int(&ship_board)[HEIGHT][WIDTH])
 {
-    pair<int, int>  ships_of_type[4] = { {1, 4}, {2, 3}, {3, 2}, {4, 1} };
+    const std::unordered_map<int, int> SHIP_LIMITS = {
+    {4, 1}, 
+    {3, 2}, 
+    {2, 3}, 
+    {1, 4}  
+    };
+    std::vector<int> shipLengths = { 4, 3, 3, 2, 2, 2, 1, 1, 1, 1 };
 
     SetConsoleOutputCP(65001);
     SetConsoleCP(1251);
-    wcout << L"WASD для перемещения";
-    getCountOfShip(ship_board);
-    int index_i = 0, index_j = 0;
-    while (true)
+
+    std::unordered_map<int, int> placedCounts = { {4, 0}, {3, 0}, {2, 0}, {1, 0} };
+    int totalShipsPlaced = 0;
+
+    wcout << L"WASD: Перемещение, Q: Вращение, ENTER: Разместить. \n";
+
+    for (int length : shipLengths)
     {
-        wchar_t symbol = _getche();
-        switch (toupper(symbol))
+        if (placedCounts[length] >= SHIP_LIMITS.at(length)) {
+            continue; 
+        }
+
+        ShipPlacement currentShip = { HEIGHT / 2, WIDTH / 2 - length / 2, length, true };
+        bool isPlaced = false;
+
+        while (!isPlaced)
         {
-        case L'W':
-        case 214:
-            ship_board[index_i][index_j] = 0;
-            index_i--;
-            break;
-        case L'A':
-        case 212:
-            ship_board[index_i][index_j] = 0;
-            index_j--;
-            break;
-        case L'S':
-        case 219:
-            ship_board[index_i][index_j] = 0;
-            index_i++;
-            break;
-        case L'D':
-        case 194:
-            ship_board[index_i][index_j] = 0;
-            index_j++;
-            break;
-        case '\r':
-            ship_board[index_i][index_j] = 1;
-            index_i++;
-            break;
-        default:
-            wcout << L"Ошибка ввода" << toupper(symbol);
-            break;
-        }
-        ship_board[index_i][index_j] = 9;
-        drawBoards(ship_board);
-    }
-}
+            int temp_board[HEIGHT][WIDTH];
+            markCurrentShip(temp_board, ship_board, currentShip);
+            drawBoards(temp_board);
 
-bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x)
-{
-    if (
-        ship_board[y - 1][x - 1] == 1 || ship_board[y - 1][x] == 1 || ship_board[y - 1][x + 1] == 1 ||
-        ship_board[y + 1][x - 1] == 1 || ship_board[y + 1][x] == 1 || ship_board[y + 1][x + 1] == 1 ||
-        ship_board[y][x - 1] == 1 || ship_board[y][x] == 1 || ship_board[y][x + 1] == 1
-        )
-    {
-        return true;
-    }
-    return false;
-}
+            wcout << L"\nРазместите корабль длиной " << length
+                << L" (" << (placedCounts[length] + 1) << L" из " << SHIP_LIMITS.at(length) << L"): ";
 
-bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH])
-{
-    bool fire = false;
-    while (!fire)
-    {
-        wcout << L"Введите координаты для выстрела поля!\n";
+            wchar_t symbol = _getch();
 
-        string input;
-        getline(cin, input);
+            int maxRow = HEIGHT - (currentShip.isHorizontal ? 1 : length);
+            int maxCol = WIDTH - (currentShip.isHorizontal ? length : 1);
 
-        //удаляем пробелы в начале/конце и затем все пробелы для упрощения парсинга
-        input.erase(remove_if(input.begin(), input.end(), ::isspace), input.end());
+            int prevRow = currentShip.row;
+            int prevCol = currentShip.col;
+            bool prevIsHorizontal = currentShip.isHorizontal;
 
-        if (input.size() < 2) {
-            wcout << L"Неверный формат ввода! Пример: A3D\n";
-            continue;
-        }
-
-        //буква - первый символ
-        char letter = input[0];
-        if (!isalpha(letter)) {
-            wcout << L"Первая позиция должна быть буквой (A-J)\n";
-            continue;
-        }
-        int x1 = toupper(letter) - 'A';
-
-        //читаем цифры, начиная с позиции 1
-        int pos = 1;
-        int number = 0;
-        bool foundDigit = false;
-        while (pos < (int)input.size() && isdigit(input[pos])) {
-            foundDigit = true;
-            number = number * 10 + (input[pos] - '0');
-            ++pos;
-        }
-        if (!foundDigit) {
-            wcout << L"После буквы должно идти число (1-10)\n";
-            continue;
-        }
-        int y1 = number - 1;
-
-
-        if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH)
-        {
-            wcout << L"Координаты вне поля!\n";
-            continue;
-        }
-
-
-        if (ship_board[y1][x1] == 1)
-        {
-            if (isShipCellAround(ship_board, y1, x1))
+            switch (toupper(symbol))
             {
-                shots_board[y1][x1] = 2;
-            }
-            else
+            case L'W': case 214: case 72: 
+                currentShip.row = max(0, currentShip.row - 1);
+                break;
+            case L'A': case 212: case 75: 
+                currentShip.col = max(0, currentShip.col - 1);
+                break;
+            case L'S': case 219: case 80: 
+                currentShip.row = min(maxRow, currentShip.row + 1);
+                break;
+            case L'D': case 194: case 77: 
+                currentShip.col = min(maxCol, currentShip.col + 1);
+                break;
+
+            case L'Q': 
+                currentShip.isHorizontal = !currentShip.isHorizontal;
+                currentShip.row = min(currentShip.row, HEIGHT - (currentShip.isHorizontal ? 1 : length));
+                currentShip.col = min(currentShip.col, WIDTH - (currentShip.isHorizontal ? length : 1));
+                break;
+
+            case '\r':
             {
-                shots_board[y1][x1] = 3;
+                int y1 = currentShip.row;
+                int x1 = currentShip.col;
+                int y2 = y1 + (currentShip.isHorizontal ? 0 : length - 1);
+                int x2 = x1 + (currentShip.isHorizontal ? length - 1 : 0);
+
+                if (y1 < 0 || y1 >= HEIGHT || x1 < 0 || x1 >= WIDTH ||
+                    y2 < 0 || y2 >= HEIGHT || x2 < 0 || x2 >= WIDTH) {
+                    wcout << L"Ошибка: Корабль выходит за пределы поля! Попробуйте снова.\n";
+                    break;
+                }
+
+                if (canPlace(ship_board, y1, x1, y2, x2)) {
+                    placeFinalShip(ship_board, currentShip);
+                    placedCounts[length]++; 
+                    totalShipsPlaced++;
+                    isPlaced = true; 
+                    break;
+                }
+                else {
+                    break;
+                }
             }
-            return true;
-        }
-        else
-        {
-            shots_board[y1][x1] = 4;
-            return false;
+            default:
+                break;
+            }
         }
     }
-    return true;
+
+    drawBoards(ship_board);
+    wcout << L"\nВсе 10 кораблей размещены! Вы закончили расстановку! Нажмите Enter для продолжения...";
+
+    string temp;
+    getline(cin, temp);
 }

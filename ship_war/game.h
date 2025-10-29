@@ -33,8 +33,4 @@ static std::wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revea
 
 void placeShip(int(&ship_board)[HEIGHT][WIDTH]);
 bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
-bool isShipCellAround(const int(&ship_board)[HEIGHT][WIDTH], int y, int x);
 std::unordered_map<std::string, int> getCountOfShip(const int(&ships_of_type)[HEIGHT][WIDTH]);
-
-//bool checkWin();
-bool makeShot(int(&shots_board)[HEIGHT][WIDTH], const int(&ship_board)[HEIGHT][WIDTH]);
