@@ -4,11 +4,10 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include <array>
 
 const int WIDTH = 10;
 const int HEIGHT = 10;
-
-enum { A = 0, B = 1, C = 2, D = 3, E = 4, F = 5, G = 6, H = 7, I = 8, J = 9 };
 
 enum class Cell : int {
     Empty = 0,
@@ -19,7 +18,13 @@ enum class Cell : int {
     Cursor = 9,
 };
 
+//предкомпилированные (глобальные) строки UTF-8
+extern std::string header_utf8;   //заголовок (буквы)
+extern std::string sep_utf8;      //разделитель между строками
+extern std::string endsep_utf8;   //нижний разделитель
+extern bool precomputed;
 
+void precomputeLayout();
 
 struct CursorHide {
     CursorHide() { std::wcout << L"\x1b[?25l"; std::wcout.flush(); }    //hide
@@ -27,9 +32,6 @@ struct CursorHide {
 };
 
 void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH]);
-static std::wstring makeHeader();
-static std::wstring makeHorizontSeparator(bool isEnd);
-static std::wstring makeRow(const int board_row[WIDTH], int rowIndex, bool revealShips);
 
 void placeShip(int (&ship_board)[HEIGHT][WIDTH]);
 void placeShipd(int(&ship_board)[HEIGHT][WIDTH]);
