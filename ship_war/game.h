@@ -1,22 +1,23 @@
 #pragma once
 
-#include <iostream>
+#include <array>
+#include <vector>
 #include <string>
 #include <unordered_map>
-#include <vector>
-#include <array>
 
 const int WIDTH = 10;
 const int HEIGHT = 10;
 
 enum class Cell : int {
-    Empty = 0,
-    Ship = 1,
-    Hit = 2,
-    Kill = 3,
-    Miss = 4,
-    Cursor = 9,
+    Empty   = 0,
+    Ship    = 1,
+    Hit     = 2,
+    Kill    = 3,
+    Miss    = 4,
+    Cursor  = 9,
 };
+
+using Board = std::array<std::array<int, WIDTH>, HEIGHT>;
 
 //предкомпилированные (глобальные) строки UTF-8
 extern std::string header_utf8;   //заголовок (буквы)
@@ -26,13 +27,18 @@ extern bool precomputed;
 
 void precomputeLayout();
 
-struct CursorHide {
-    CursorHide() { std::cout << "\x1b[?25l"; std::cout.flush(); }    //hide
-    ~CursorHide() { std::cout << "\x1b[?25h"; std::cout.flush(); }   //show
-};
+//struct CursorHide {
+//    CursorHide() { std::cout << "\x1b[?25l"; std::cout.flush(); }    //hide
+//    ~CursorHide() { std::cout << "\x1b[?25h"; std::cout.flush(); }   //show
+//};
 
-void drawBoards(const int (&ship_board)[HEIGHT][WIDTH], const int(&shots_board)[HEIGHT][WIDTH]);
+//Отрисовка полей
+void drawBoards(const Board& ship_board, const Board& shots_board);
+//Разместить корабль
+void placeShip(Board& ship_board);
+//Можем-ли так разместить корабль ? true : false
+bool canPlace(Board&  ship_board, int y1, int x1, int y2, int x2);
+//Сделать выстрел
+void makeShot(Board& my_board, Board& ship_board, Board&  shots_board);
 
-void placeShip(int(&ship_board)[HEIGHT][WIDTH]);
-bool canPlace(int (&ship_board)[HEIGHT][WIDTH], int y1, int x1, int y2, int x2);
-std::unordered_map<std::string, int> getCountOfShip(const int(&ships_of_type)[HEIGHT][WIDTH]);
+int getCountOfShip(const Board& b);

@@ -1,23 +1,13 @@
 ﻿#include "game.h"
 
-#include <io.h>
-#include <fcntl.h>
-#include <iostream>
 #include <windows.h>
-
-int first_ship_board[HEIGHT][WIDTH] = {};
-int first_shots_board[HEIGHT][WIDTH] = {};
-
-int second_ship_board[HEIGHT][WIDTH] = {};
-int second_shots_board[HEIGHT][WIDTH] = {};
+#include <iostream>
+#include <locale>
 
 using namespace std;
 
 int main()
 {
-    _setmode(_fileno(stdout), _O_U16TEXT);
-
-
     //устанавливаем локаль для корректного вывода Unicode в Windows/Unix
     setlocale(LC_ALL, "");
     locale::global(locale(""));
@@ -42,26 +32,64 @@ int main()
         }
     }
 
+    Board first_ship_board{};
+    Board first_shots_board{};
+    Board second_ship_board{};
+    Board second_shots_board{};
+
+    //// Первая доска
+    //Board first_ship_board = { {
+    //    {{0,0,0,0,0,0,1,0,0,0}},
+    //    {{0,1,0,0,0,0,1,0,0,0}},
+    //    {{0,0,0,1,0,0,1,0,0,0}},
+    //    {{0,1,0,0,0,0,1,0,0,1}},
+    //    {{0,0,0,0,0,0,0,0,0,1}},
+    //    {{0,0,0,0,0,0,0,1,0,0}},
+    //    {{0,1,1,0,0,0,0,0,0,0}},
+    //    {{0,0,0,0,1,0,0,0,1,0}},
+    //    {{1,0,0,0,1,0,0,0,1,0}},
+    //    {{1,0,0,0,1,0,0,0,1,0}}
+    //} };
+
+    //// Вторая доска
+    //Board second_ship_board = { {
+    //    {{1,1,0,0,0,0,0,0,0,0}},
+    //    {{0,0,0,0,1,1,1,1,0,0}},
+    //    {{0,1,0,0,0,0,0,0,0,0}},
+    //    {{0,0,0,0,0,1,0,0,0,0}},
+    //    {{0,0,0,0,0,0,0,1,1,0}},
+    //    {{0,1,1,0,0,0,0,0,0,0}},
+    //    {{0,0,0,0,0,0,0,1,0,0}},
+    //    {{0,1,0,1,0,0,0,1,0,0}},
+    //    {{0,1,0,0,0,1,0,1,0,0}},
+    //    {{0,1,0,0,0,0,0,0,0,0}}
+    //} };
+
     //спрячем курсор
-    CursorHide hide;
+    //CursorHide hide;
 
     //предкомпилируем все статические строки один раз
     precomputeLayout();
 
     drawBoards(first_ship_board, first_shots_board);
-    
     placeShip(first_ship_board);
+
+
+    drawBoards(second_ship_board, second_shots_board);
     placeShip(second_ship_board);
     
-    while (true)
-    {
+    while (true) {
         drawBoards(first_ship_board, first_shots_board);
-        drawBoards(first_ship_board, first_shots_board);
+        std::cout << "\nХод первого игрока\n";
+        makeShot(first_ship_board, second_ship_board, first_shots_board);
 
-        Sleep(500);
+        Sleep(300);
 
         drawBoards(second_ship_board, second_shots_board);
-        drawBoards(second_ship_board, second_shots_board);
+        std::cout << "\nХод второго игрока\n";
+        makeShot(second_ship_board, first_ship_board, second_shots_board);
+
+        Sleep(300);
     }
 
     return 0;
