@@ -19,7 +19,7 @@ string endsep_utf8;
 bool precomputed = false;
 
 //Вспомогательное: безопасно получить строку по Cell
-static const string cellFor(int symbol, bool showShips)
+static const std::string cellFor(int symbol, bool showShips)
 {
     Cell c = static_cast<Cell>(symbol);
     switch (c)
@@ -202,18 +202,6 @@ bool canPlace(Board& ship_board, int y1, int x1, int y2, int x2) {
     }
     return true;
 }
-
-struct ShipPlacement {
-    int row;
-    int col;
-    int length;
-    bool isHorizontal; 
-};
-
-struct FirePlacement {
-    int row;
-    int col;
-};
 
 void placeFinalShip(Board& ship_board, const ShipPlacement& currentShip)
 {
