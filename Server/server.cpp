@@ -1,9 +1,8 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#include "/API/ship_war/game.h"
-
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <windows.h>
 #include <iostream>
 #include <string>
 #include <thread>
@@ -12,8 +11,9 @@
 #include <vector>
 #include <sstream>
 #include <locale>
-//#include <stdexcept>
-//#include <cstdint>
+#include <algorithm>
+
+#include "/API/ship_war/game.h"
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -44,12 +44,12 @@ bool recv_all(SOCKET s, char* buf, int len)
 
 bool send_message(SOCKET s, const std::string& msg)
 {
-    int len = msg.size();
-    int netlen = htonl(len);
+    uint32_t len = (uint32_t)msg.size();
+    uint32_t netlen = htonl(len);
 
-    if (!send_all(s, (const char*)&netlen, 4)) { return false; }
+    if (!send_all(s, reinterpret_cast<const char*>(&netlen), 4)) { return false; }
     if (len == 0) { return true; }
-    return send_all(s, msg.data(), len);
+    return send_all(s, msg.data(), (int)len);
 }
 
 bool recv_message(SOCKET s, std::string& out)
@@ -60,7 +60,7 @@ bool recv_message(SOCKET s, std::string& out)
 
     out.resize(len);
     if (len == 0) { return true; }
-    return recv_all(s, &out[0], len);
+    return recv_all(s, &out[0], (int)len);
 }
 
 Board ship_board[2];
@@ -145,10 +145,10 @@ int main()
     SOCKET listenSock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
     sockaddr_in a{}; a.sin_family = AF_INET; inet_pton(AF_INET, "127.0.0.1", &a.sin_addr); a.sin_port = htons(54000);
-    
+
     bind(listenSock, (sockaddr*)&a, sizeof(a));
     listen(listenSock, SOMAXCONN);
-    
+
     std::cout << "Waiting two players...\n";
 
     SOCKET clients[2];
@@ -158,12 +158,12 @@ int main()
         std::cout << "Player " << (i) << " connected\n";
     }
 
-    for (int i = 0; i < 2; i++) 
+    for (int i = 0; i < 2; i++)
     {
-        for (int r = 0; r < HEIGHT; r++) 
-            for (int c = 0; c < WIDTH; c++) 
-            { 
-                ship_board[i][r][c] = (int)Cell::Empty; shots_board[i][r][c] = (int)Cell::Empty; 
+        for (int r = 0; r < HEIGHT; r++)
+            for (int c = 0; c < WIDTH; c++)
+            {
+                ship_board[i][r][c] = (int)Cell::Empty; shots_board[i][r][c] = (int)Cell::Empty;
             }
         ready_flag[i].store(false);
     }
@@ -176,34 +176,6 @@ int main()
     send_message(clients[0], "GAME_START");
     send_message(clients[1], "GAME_START");
     std::cout << "Both ready — starting turns\n";
-
-    //// Первая доска
-    //Board first_ship_board = { {
-    //    {{0,0,0,0,0,0,1,0,0,0}},
-    //    {{0,1,0,0,0,0,1,0,0,0}},
-    //    {{0,0,0,1,0,0,1,0,0,0}},
-    //    {{0,1,0,0,0,0,1,0,0,1}},
-    //    {{0,0,0,0,0,0,0,0,0,1}},
-    //    {{0,0,0,0,0,0,0,1,0,0}},
-    //    {{0,1,1,0,0,0,0,0,0,0}},
-    //    {{0,0,0,0,1,0,0,0,1,0}},
-    //    {{1,0,0,0,1,0,0,0,1,0}},
-    //    {{1,0,0,0,1,0,0,0,1,0}}
-    //} };
-
-    //// Вторая доска
-    //Board second_ship_board = { {
-    //    {{1,1,0,0,0,0,0,0,0,0}},
-    //    {{0,0,0,0,1,1,1,1,0,0}},
-    //    {{0,1,0,0,0,0,0,0,0,0}},
-    //    {{0,0,0,0,0,1,0,0,0,0}},
-    //    {{0,0,0,0,0,0,0,1,1,0}},
-    //    {{0,1,1,0,0,0,0,0,0,0}},
-    //    {{0,0,0,0,0,0,0,1,0,0}},
-    //    {{0,1,0,1,0,0,0,1,0,0}},
-    //    {{0,1,0,0,0,1,0,1,0,0}},
-    //    {{0,1,0,0,0,0,0,0,0,0}}
-    //} };
 
     int turn = 0; // player index who shoots
     bool game_over = false;
@@ -278,9 +250,9 @@ int main()
                 int after_sh = shooter_after[r][c];
                 if (before_sh != after_sh) {
                     // формат: "S <TYPE> r c\n"  (S = Shooter view)
-                    if (after_sh == (int)Cell::Hit)   shooter_batch += "HIT " + std::to_string(r) + " " + std::to_string(c) + "\n";
-                    if (after_sh == (int)Cell::Kill)  shooter_batch += "KILL " + std::to_string(r) + " " + std::to_string(c) + "\n";
-                    if (after_sh == (int)Cell::Miss)  shooter_batch += "MISS " + std::to_string(r) + " " + std::to_string(c) + "\n";
+                    if (after_sh == (int)Cell::Hit)  shooter_batch += "HIT " + std::to_string(r) + " " + std::to_string(c) + "\n";
+                    if (after_sh == (int)Cell::Kill) shooter_batch += "KILL " + std::to_string(r) + " " + std::to_string(c) + "\n";
+                    if (after_sh == (int)Cell::Miss) shooter_batch += "MISS " + std::to_string(r) + " " + std::to_string(c) + "\n";
                 }
 
                 int before_opp = opp_before[r][c];
@@ -293,10 +265,24 @@ int main()
                 }
             }
         }
+        std::string shot_result_line;
+        {
+            int val = shooter_after[y][x]; // что сейчас в доске стрелка для этой клетки
+            if (val == (int)Cell::Hit)  shot_result_line = "SHOT_RESULT HIT " + std::to_string(y) + " " + std::to_string(x);
+            else if (val == (int)Cell::Kill) shot_result_line = "SHOT_RESULT KILL " + std::to_string(y) + " " + std::to_string(x);
+            else if (val == (int)Cell::Miss) shot_result_line = "SHOT_RESULT MISS " + std::to_string(y) + " " + std::to_string(x);
+            else shot_result_line = ""; // на всякий — если нет изменений
+        }
 
-        // Отправляем пачками (если есть что отправить)
-        if (!shooter_batch.empty())  send_message(clients[turn], "BATCH\n" + shooter_batch);
-        if (!opponent_batch.empty()) send_message(clients[1 - turn], "BATCH\n" + opponent_batch);
+        // Отправим краткий результат стрелку (если есть)
+        if (!shot_result_line.empty()) {
+            send_message(clients[turn], shot_result_line);
+            std::cout << "Sent " << shot_result_line << " to player " << turn << "\n";
+        }
+
+        // Затем отправляем детальные пачки (BATCH)
+        if (!shooter_batch.empty()) { send_message(clients[turn], "BATCH\n" + shooter_batch);  std::cout << "Sent BATCH to shooter (p" << turn << ")\n"; }
+        if (!opponent_batch.empty()) { send_message(clients[1 - turn], "BATCH\n" + opponent_batch); std::cout << "Sent BATCH to opponent (p" << (1 - turn) << ")\n"; }
 
         // Проверим победу
         {
@@ -305,13 +291,25 @@ int main()
             if (remaining == 0) {
                 send_message(clients[turn], "WIN");
                 send_message(clients[1 - turn], "LOSE");
+                std::cout << "Player " << turn << " wins\n";
                 game_over = true;
                 break;
             }
         }
 
-        // Смена хода (если не повторный выстрел)
-        if (!repeatShot) turn = 1 - turn;
+        // И наконец — управленческие пакеты о том, чей ход дальше
+        if (repeatShot) {
+            send_message(clients[turn], "YOUR_TURN");
+            send_message(clients[1 - turn], "OPPONENT_TURN");
+            std::cout << "Player " << turn << " continues (repeatShot)\n";
+        }
+        else {
+            send_message(clients[1 - turn], "YOUR_TURN");
+            send_message(clients[turn], "OPPONENT_TURN");
+            std::cout << "Turn passes to player " << (1 - turn) << "\n";
+            turn = 1 - turn;
+        }
+
     }
 
     // cleanup

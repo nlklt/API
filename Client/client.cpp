@@ -4,6 +4,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+#include <windows.h>
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -16,6 +17,7 @@
 #include <chrono>
 #include <locale>
 #include <conio.h>
+#include <algorithm>
 
 #pragma comment(lib, "Ws2_32.lib")
 
@@ -74,7 +76,6 @@ std::string last_shot_result;
 bool last_shot_ready = false;
 
 // ----------------- UTF-8 -> Console helpers -----------------
-#include <windows.h>
 #include <string>
 
 static std::wstring utf8_to_wstring(const std::string& s) {
@@ -116,14 +117,24 @@ void apply_update_line(const std::string& line) {
     std::string cmd; iss >> cmd;
     int r, c;
     if (!(iss >> r >> c)) return;
-    std::lock_guard<std::mutex> lg(boards_mtx);
-    if (cmd == "HIT") { shots_board[r][c] = (int)Cell::Hit; }
-    else if (cmd == "KILL") { shots_board[r][c] = (int)Cell::Kill; }
-    else if (cmd == "MISS") { shots_board[r][c] = (int)Cell::Miss; }
+    {
+        std::lock_guard<std::mutex> lg(boards_mtx);
+        if (cmd == "HIT") { shots_board[r][c] = (int)Cell::Hit; }
+        else if (cmd == "KILL") { shots_board[r][c] = (int)Cell::Kill; }
+        else if (cmd == "MISS") { shots_board[r][c] = (int)Cell::Miss; }
 
-    else if (cmd == "INCOMING_HIT") { my_board[r][c] = (int)Cell::Hit; }
-    else if (cmd == "INCOMING_KILL") { my_board[r][c] = (int)Cell::Kill; }
-    else if (cmd == "INCOMING_MISS") { if (my_board[r][c] == (int)Cell::Empty) my_board[r][c] = (int)Cell::Miss; }
+        else if (cmd == "INCOMING_HIT") { my_board[r][c] = (int)Cell::Hit; }
+        else if (cmd == "INCOMING_KILL") { my_board[r][c] = (int)Cell::Kill; }
+        else if (cmd == "INCOMING_MISS") { if (my_board[r][c] == (int)Cell::Empty) my_board[r][c] = (int)Cell::Miss; }
+    }
+
+    // Если это отзыв по нашему выстрелу — пробуждаем ждущий поток
+    if (cmd == "HIT" || cmd == "KILL" || cmd == "MISS") {
+        std::lock_guard<std::mutex> lk(shot_mtx);
+        last_shot_result = cmd + " " + std::to_string(r) + " " + std::to_string(c);
+        last_shot_ready = true;
+        shot_cv.notify_one();
+    }
 }
 
 void handle_server_message(const std::string& msg) {
@@ -135,6 +146,37 @@ void handle_server_message(const std::string& msg) {
         while (std::getline(batch, line)) {
             if (line.empty()) continue;
             apply_update_line(line);
+        }
+
+        {
+            std::istringstream tmp(msg);
+            std::string maybe; tmp >> maybe;
+            if (maybe == "SHOT_RESULT") {
+                int r, c; std::string type;
+                tmp >> type >> r >> c;
+                // обновим локальные доски в соответствии с типом
+                {
+                    std::lock_guard<std::mutex> lg(boards_mtx);
+                    if (type == "HIT") shots_board[r][c] = (int)Cell::Hit;
+                    else if (type == "KILL") shots_board[r][c] = (int)Cell::Kill;
+                    else if (type == "MISS") shots_board[r][c] = (int)Cell::Miss;
+                }
+                // уведомим поток, ожидающий результат выстрела
+                {
+                    std::lock_guard<std::mutex> lk(shot_mtx);
+                    last_shot_result = type + " " + std::to_string(r) + " " + std::to_string(c);
+                    last_shot_ready = true;
+                    shot_cv.notify_one();
+                }
+                // перерисуем
+                Board copy_my, copy_shots;
+                {
+                    std::lock_guard<std::mutex> lg(boards_mtx);
+                    copy_my = my_board; copy_shots = shots_board;
+                }
+                drawBoards(copy_my, copy_shots);
+                return;
+            }
         }
 
         // После применения обновлений — перерисуем ДОСЬ только ОДИН раз.
@@ -178,10 +220,19 @@ void handle_server_message(const std::string& msg) {
         int r, c;
         if (cmd == "HIT" || cmd == "KILL" || cmd == "MISS") {
             iss >> r >> c;
-            std::lock_guard<std::mutex> lg(boards_mtx);
-            if (cmd == "HIT") shots_board[r][c] = (int)Cell::Hit;
-            if (cmd == "KILL") shots_board[r][c] = (int)Cell::Kill;
-            if (cmd == "MISS") shots_board[r][c] = (int)Cell::Miss;
+            {
+                std::lock_guard<std::mutex> lg(boards_mtx);
+                if (cmd == "HIT") shots_board[r][c] = (int)Cell::Hit;
+                if (cmd == "KILL") shots_board[r][c] = (int)Cell::Kill;
+                if (cmd == "MISS") shots_board[r][c] = (int)Cell::Miss;
+            }
+            // уведомляем ожидающий поток о результате выстрела
+            {
+                std::lock_guard<std::mutex> lk(shot_mtx);
+                last_shot_result = cmd + " " + std::to_string(r) + " " + std::to_string(c);
+                last_shot_ready = true;
+                shot_cv.notify_one();
+            }
         }
         else if (cmd == "INCOMING_HIT" || cmd == "INCOMING_KILL" || cmd == "INCOMING_MISS") {
             iss >> r >> c;
