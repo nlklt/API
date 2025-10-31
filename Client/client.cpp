@@ -1,6 +1,6 @@
 // client.cpp (исправлено под Board из game.h)
 #define _CRT_SECURE_NO_WARNINGS
-#include "/API/ship_war/game.h"                // или путь "/API/ship_war/game.h" если у тебя так
+#include "\API\ship_war\game.h"             // или путь "/API/ship_war/game.h" если у тебя так
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
@@ -123,59 +123,39 @@ void apply_update_line(const std::string& line) {
         else if (cmd == "KILL") { shots_board[r][c] = (int)Cell::Kill; }
         else if (cmd == "MISS") { shots_board[r][c] = (int)Cell::Miss; }
 
-        else if (cmd == "INCOMING_HIT") { my_board[r][c] = (int)Cell::Hit; }
-        else if (cmd == "INCOMING_KILL") { my_board[r][c] = (int)Cell::Kill; }
-        else if (cmd == "INCOMING_MISS") { if (my_board[r][c] == (int)Cell::Empty) my_board[r][c] = (int)Cell::Miss; }
-    }
-
-    // Если это отзыв по нашему выстрелу — пробуждаем ждущий поток
-    if (cmd == "HIT" || cmd == "KILL" || cmd == "MISS") {
-        std::lock_guard<std::mutex> lk(shot_mtx);
-        last_shot_result = cmd + " " + std::to_string(r) + " " + std::to_string(c);
-        last_shot_ready = true;
-        shot_cv.notify_one();
-    }
+    else if (cmd == "INCOMING_HIT") { my_board[r][c] = (int)Cell::Hit; }
+    else if (cmd == "INCOMING_KILL") { my_board[r][c] = (int)Cell::Kill; }
+    else if (cmd == "INCOMING_MISS") { if (my_board[r][c] == (int)Cell::Empty) my_board[r][c] = (int)Cell::Miss; }
 }
 
 void handle_server_message(const std::string& msg) {
-    // Special handling for BATCH
     if (msg.rfind("BATCH\n", 0) == 0) {
-        // распарсим построчно
-        std::istringstream batch(msg.substr(6)); // убираем "BATCH\n"
+        std::istringstream batch(msg.substr(6));
         std::string line;
+
+        std::string shooter_result;
+        std::string best_result;
+        int best_r = -1, best_c = -1;
+
         while (std::getline(batch, line)) {
             if (line.empty()) continue;
-            apply_update_line(line);
-        }
 
-        {
-            std::istringstream tmp(msg);
-            std::string maybe; tmp >> maybe;
-            if (maybe == "SHOT_RESULT") {
-                int r, c; std::string type;
-                tmp >> type >> r >> c;
-                // обновим локальные доски в соответствии с типом
-                {
-                    std::lock_guard<std::mutex> lg(boards_mtx);
-                    if (type == "HIT") shots_board[r][c] = (int)Cell::Hit;
-                    else if (type == "KILL") shots_board[r][c] = (int)Cell::Kill;
-                    else if (type == "MISS") shots_board[r][c] = (int)Cell::Miss;
-                }
-                // уведомим поток, ожидающий результат выстрела
-                {
-                    std::lock_guard<std::mutex> lk(shot_mtx);
-                    last_shot_result = type + " " + std::to_string(r) + " " + std::to_string(c);
-                    last_shot_ready = true;
-                    shot_cv.notify_one();
-                }
-                // перерисуем
-                Board copy_my, copy_shots;
-                {
-                    std::lock_guard<std::mutex> lg(boards_mtx);
-                    copy_my = my_board; copy_shots = shots_board;
-                }
-                drawBoards(copy_my, copy_shots);
-                return;
+            std::istringstream lss(line);
+            std::string cmd; int r, c;
+            lss >> cmd >> r >> c;
+
+            apply_update_line(line);
+
+            // приоритетный выбор: KILL > HIT > MISS
+            int priority = 0;
+            if (cmd == "MISS") priority = 1;
+            else if (cmd == "HIT") priority = 2;
+            else if (cmd == "KILL") priority = 3;
+
+            if (priority > 0 && priority > (best_result == "KILL" ? 3 : best_result == "HIT" ? 2 : best_result == "MISS" ? 1 : 0)) {
+                best_result = cmd;
+                best_r = r;
+                best_c = c;
             }
         }
 
@@ -187,12 +167,21 @@ void handle_server_message(const std::string& msg) {
             copy_shots = shots_board;
         }
         drawBoards(copy_my, copy_shots);
+
+        // Уведомляем makeShotNetwork
+        if (!best_result.empty()) {
+            std::lock_guard<std::mutex> lk(shot_mtx);
+            last_shot_result = best_result + " " + std::to_string(best_r) + " " + std::to_string(best_c);
+            last_shot_ready = true;
+            shot_cv.notify_one();
+        }
         return;
     }
 
-    // Старая логика для одиночных сообщений (HIT/MISS/KILL/INCOMING_* / YOUR_TURN / GAME_START / WIN / etc.)
+    // остальная обработка (YOUR_TURN, HIT, MISS, KILL, INCOMING_*, WIN/LOSE и т.д.)
     std::istringstream iss(msg);
     std::string cmd; iss >> cmd;
+
     if (cmd == "YOUR_TURN") {
         your_turn.store(true);
     }
@@ -220,19 +209,10 @@ void handle_server_message(const std::string& msg) {
         int r, c;
         if (cmd == "HIT" || cmd == "KILL" || cmd == "MISS") {
             iss >> r >> c;
-            {
-                std::lock_guard<std::mutex> lg(boards_mtx);
-                if (cmd == "HIT") shots_board[r][c] = (int)Cell::Hit;
-                if (cmd == "KILL") shots_board[r][c] = (int)Cell::Kill;
-                if (cmd == "MISS") shots_board[r][c] = (int)Cell::Miss;
-            }
-            // уведомляем ожидающий поток о результате выстрела
-            {
-                std::lock_guard<std::mutex> lk(shot_mtx);
-                last_shot_result = cmd + " " + std::to_string(r) + " " + std::to_string(c);
-                last_shot_ready = true;
-                shot_cv.notify_one();
-            }
+            std::lock_guard<std::mutex> lg(boards_mtx);
+            if (cmd == "HIT") shots_board[r][c] = (int)Cell::Hit;
+            if (cmd == "KILL") shots_board[r][c] = (int)Cell::Kill;
+            if (cmd == "MISS") shots_board[r][c] = (int)Cell::Miss;
         }
         else if (cmd == "INCOMING_HIT" || cmd == "INCOMING_KILL" || cmd == "INCOMING_MISS") {
             iss >> r >> c;
@@ -241,6 +221,7 @@ void handle_server_message(const std::string& msg) {
             if (cmd == "INCOMING_KILL") my_board[r][c] = (int)Cell::Kill;
             if (cmd == "INCOMING_MISS") if (my_board[r][c] == (int)Cell::Empty) my_board[r][c] = (int)Cell::Miss;
         }
+
         // перерисуем компактно
         Board copy_my, copy_shots;
         {
@@ -251,6 +232,7 @@ void handle_server_message(const std::string& msg) {
         drawBoards(copy_my, copy_shots);
     }
 }
+
 
 // поток приёма сообщений от сервера
 void receiver_thread(SOCKET sock) {

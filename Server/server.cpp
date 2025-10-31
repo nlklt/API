@@ -1,5 +1,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 
+#include "\API\ship_war\game.h"
+
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <windows.h>
